@@ -1,0 +1,20 @@
+# Use root/toor as user/password credentials
+version: '3.1'
+services:
+  minio:
+    image: minio/minio:latest
+    restart: always
+    environment: 
+        MINIO_ACCESS_KEY: instadukanapps
+        MINIO_SECRET_KEY: instadukan2020
+    volumes:
+        - ./.minio/data:/export
+        - ./.minio/config:/root/.minio
+    ports:
+        - 9000:9000
+    networks:
+        - local
+    command: server /export
+networks:
+    local:
+        external: true

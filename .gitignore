@@ -1,0 +1,4 @@
+db/mongo/storage/**
+db/mysql/storage/**
+db/postgres/storage/**
+minio/.minio/**

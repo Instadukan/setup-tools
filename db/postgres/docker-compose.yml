@@ -1,0 +1,21 @@
+# Use root/toor as user/password credentials
+version: '3.1'
+
+services:
+	postgres-db:
+		image: postgres
+		restart: unless-stopped
+		environment:
+			- POSTGRES_USER=root
+			- POSTGRES_PASSWORD=root
+			- POSTGRES_DB=instadukan-com
+			- PGDATA=/data/postgres
+		ports:
+			- 5432:5432
+		volumes:
+			- ./storage:/data/postgres
+		networks:
+			- local
+networks:
+	local:
+		external: true
