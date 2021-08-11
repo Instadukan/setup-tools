@@ -16,10 +16,12 @@ services:
     networks:
         - local
   adminer:
-    image: adminer
+    image: dockette/adminer:full
     restart: always
+    environment:
+        UPLOAD: 4096M
     ports:
-      - 8080:8080
+      - 8080:80
     networks:
         - local
 networks:

@@ -6,10 +6,10 @@ services:
     restart: always
     environment:
         MONGO_INITDB_DATABASE: instadukan
-        MONGO_INITDB_ROOT_USERNAME: root
-        MONGO_INITDB_ROOT_PASSWORD: toor 
-    command:
-        - '--auth'
+        # MONGO_INITDB_ROOT_USERNAME: root
+        # MONGO_INITDB_ROOT_PASSWORD: toor 
+    # command:
+        # - '--auth'
     ports:
         - 27017-27019:27017-27019
     volumes:
