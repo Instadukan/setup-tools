@@ -1,4 +1,3 @@
-db/mongo/storage/**
-db/mysql/storage/**
-db/postgres/storage/**
+# ignore ALL files in ANY directory named temp
+storage/
 minio/.minio/**
