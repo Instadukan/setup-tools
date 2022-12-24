@@ -17,13 +17,6 @@ services:
         - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     networks:
         - local
-  adminer:
-    image: mongoclient/mongoclient
-    restart: always
-    ports:
-      - 8889:3000
-    networks:
-        - local
 networks:
     local:
         external: true
