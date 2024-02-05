@@ -1,3 +1,1 @@
-# ignore ALL files in ANY directory named temp
-storage/
-minio/.minio/**
+/storage/
