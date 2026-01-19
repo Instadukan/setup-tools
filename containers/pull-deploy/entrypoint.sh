@@ -40,15 +40,40 @@ main() {
         exit 1
     fi
 
-    echo "→ Cloning $(basename "${GIT_REPO_URL}") ..."
-
     # Prepare authenticated URL if needed
     CLONE_URL=$(prepare_git_url "$GIT_REPO_URL")
 
-    # Clone (shallow by default)
-    git clone --depth="${GIT_CLONE_DEPTH:-1}" "$CLONE_URL" /app
+    # Check if /app exists and matches remote
+    if [ -d "/app/.git" ]; then
+        echo "→ /app exists, checking remote..."
+        cd /app || exit 1
+        CURRENT_REMOTE=$(git remote get-url origin 2>/dev/null || echo "")
 
-    echo "→ Repository cloned into /app"
+        # Strip authentication from both URLs for comparison
+        CURRENT_REMOTE_CLEAN=$(echo "$CURRENT_REMOTE" | sed 's|https://[^@]*@|https://|')
+        EXPECTED_REMOTE_CLEAN=$(echo "$GIT_REPO_URL" | sed 's|https://[^@]*@|https://|')
+
+        if [ "$CURRENT_REMOTE_CLEAN" = "$EXPECTED_REMOTE_CLEAN" ]; then
+            echo "→ Remote matches. Syncing..."
+            git status
+            git pull
+        else
+            echo "→ Remote mismatch (Found: $CURRENT_REMOTE_CLEAN, Expected: $EXPECTED_REMOTE_CLEAN). Re-cloning..."
+            cd / || exit 1
+            rm -rf /app
+        fi
+    elif [ -d "/app" ]; then
+        # Exists but not a git repo -> wipe it
+        echo "→ /app exists but is not a git repo. Cleaning up..."
+        rm -rf /app
+    fi
+
+    # Clone if /app is missing (was not there or was deleted)
+    if [ ! -d "/app" ]; then
+        echo "→ Cloning $(basename "${GIT_REPO_URL}") ..."
+        git clone --depth="${GIT_CLONE_DEPTH:-1}" "$CLONE_URL" /app
+        echo "→ Repository cloned into /app"
+    fi
 
     cd /app || exit 1
 
