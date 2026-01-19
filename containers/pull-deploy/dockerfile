@@ -1,0 +1,28 @@
+# =============================================================================
+#   Small image that clones repo → runs START_CMD
+# =============================================================================
+
+FROM node:20-alpine3.20
+
+# ─── Install git + https support + tiny utils ───────────────────────────────
+RUN apk add --no-cache \
+    git \
+    openssh-client \
+    ca-certificates \
+    tini
+
+WORKDIR /app
+
+# ─── Environment variables (you override them at runtime) ────────────────────
+ENV GIT_REPO_URL=""           \
+    GIT_USER=""               \
+    GIT_TOKEN=""              \
+    START_CMD="npm start"     \
+    GIT_CLONE_DEPTH=1
+
+# ─── Entrypoint script ──────────────────────────────────────────────────────
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Use tini → better signal handling & zombie reaping
+ENTRYPOINT ["/sbin/tini", "--", "/entrypoint.sh"]
