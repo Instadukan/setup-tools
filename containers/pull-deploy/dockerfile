@@ -11,6 +11,9 @@ RUN apk add --no-cache \
     ca-certificates \
     tini
 
+# ─── Install pnpm and yarn globally ─────────────────────────────────────────
+RUN npm install -g pnpm yarn
+
 WORKDIR /app
 
 # ─── Environment variables (you override them at runtime) ────────────────────

@@ -65,6 +65,7 @@ main() {
     elif [ -d "/app" ]; then
         # Exists but not a git repo -> wipe it
         echo "→ /app exists but is not a git repo. Cleaning up..."
+        cd / || exit 1
         rm -rf /app
     fi
 
@@ -90,15 +91,38 @@ else
     echo "→ No extra APK_PACKAGES requested"
 fi
 
-# Now safe to run npm ci (some packages provide build tools sharp needs, etc.)
-echo "→ Running npm ci ..."
-npm ci --prefer-offline --no-audit --no-fund --quiet || {
-    echo "npm ci failed – retrying without --quiet for better logs:"
-    npm ci --prefer-offline --no-audit --no-fund
-    exit 1
-}
+# Detect package manager and install dependencies
+if [ -f "pnpm-lock.yaml" ]; then
+    echo "→ Detected pnpm-lock.yaml, running pnpm install ..."
+    pnpm install --frozen-lockfile --prefer-offline --quiet || {
+        echo "pnpm install failed – retrying without --quiet for better logs:"
+        pnpm install --frozen-lockfile --prefer-offline
+        exit 1
+    }
+elif [ -f "yarn.lock" ]; then
+    echo "→ Detected yarn.lock, running yarn install ..."
+    yarn install --frozen-lockfile --prefer-offline --silent || {
+        echo "yarn install failed – retrying without --silent for better logs:"
+        yarn install --frozen-lockfile --prefer-offline
+        exit 1
+    }
+elif [ -f "package-lock.json" ]; then
+    echo "→ Detected package-lock.json, running npm ci ..."
+    npm ci --prefer-offline --no-audit --no-fund --quiet || {
+        echo "npm ci failed – retrying without --quiet for better logs:"
+        npm ci --prefer-offline --no-audit --no-fund
+        exit 1
+    }
+else
+    echo "→ No lock file found, running npm install ..."
+    npm install --prefer-offline --no-audit --no-fund --quiet || {
+        echo "npm install failed – retrying without --quiet for better logs:"
+        npm install --prefer-offline --no-audit --no-fund
+        exit 1
+    }
+fi
 
-    # Optional: you can add here composer install / bundle install / pnpm install etc
+    # Optional: you can add here composer install / bundle install / yarn install etc
     # if you want – but better to keep this image generic
 
     echo "→ Executing: ${START_CMD}"
