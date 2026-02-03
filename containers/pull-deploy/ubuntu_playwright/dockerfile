@@ -1,26 +1,40 @@
 # =============================================================================
-#   Stage 1: Install Chromium ONLY (strip everything else)
+#   Multi-stage: Pre-install ONLY Chromium from official Playwright image
+#   Final stage: Minimal Ubuntu + Node + git/tini + all required libs
+#   Clones repo → runs START_CMD
 # =============================================================================
-FROM mcr.microsoft.com/playwright:v1.58.0-jammy AS browser-installer
 
-# Install Chromium and REMOVE all other browsers
-RUN npx -y playwright@1.58.0 install chromium && \
-    rm -rf /ms-playwright/firefox-* \
-           /ms-playwright/webkit-* \
-           /ms-playwright/.links \
-           /ms-playwright/.registry
+# ─── Stage 1: Chromium-only installer ───────────────────────────────────────
+FROM mcr.microsoft.com/playwright:v1.58.0-noble AS browser-installer
 
-# =============================================================================
-#   Stage 2: Final runtime image (Ubuntu minimal)
-# =============================================================================
+# Install only Chromium + deps (using npx to avoid PNPM global issues)
+RUN npx -y playwright@1.58.0 install --with-deps chromium
+
+# ─── Stage 2: Final runtime image ───────────────────────────────────────────
 FROM ubuntu:24.04
 
-# Core runtime + Node.js 20
+# Install Node.js 20 (via nodesource) + minimal utils
 RUN apt-get update -qq && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+        git \
+        openssh-client \
         tini \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
+    && apt-get clean autoclean
+
+# Install pnpm globally
+RUN corepack enable && \
+    corepack prepare pnpm@latest --activate && \
+    pnpm config set store-dir /pnpm-store
+
+# Install ALL required system libraries for Chromium / Playwright
+# This is the critical part that fixes "cannot open shared object file" errors
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
         libglib2.0-0 \
         libnss3 \
         libatk1.0-0 \
@@ -46,29 +60,47 @@ RUN apt-get update -qq && \
         libxtst6 \
         libxss1 \
         fonts-liberation \
+        libappindicator3-1 \
+        libnspr4 \
+        wget \
+        ca-certificates \
+        fonts-noto-color-emoji \
         libfontconfig1 \
         libfreetype6 \
+        libharfbuzz0b \
         libpng16-16 \
         libjpeg-turbo8 \
         libwebp7 \
         libexpat1 \
         libbz2-1.0 \
         liblzma5 \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/*
+        libsqlite3-0 \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
+    && apt-get clean autoclean
 
-# pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy Chromium only (now small)
+# Copy the ENTIRE browsers directory (preserves real folder names: chromium-1208, etc.)
 COPY --from=browser-installer /ms-playwright /ms-playwright
+
+# Optional debug: verify what we copied (remove after first successful build)
+RUN echo "Playwright browsers copied:" && \
+    ls -laR /ms-playwright | head -n 30 && \
+    find /ms-playwright -type f -name chrome -exec ls -la {} \; || echo "chrome binary not found"
 
 WORKDIR /app
 
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
-    PNPM_HOME="/pnpm" \
-    PATH="/pnpm:$PATH"
+# ─── Environment variables ──────────────────────────────────────────────────
+ENV GIT_REPO_URL=""           \
+    GIT_USER=""               \
+    GIT_TOKEN=""              \
+    START_CMD="npm start"     \
+    GIT_CLONE_DEPTH=1         \
+    PNPM_HOME="/pnpm"         \
+    PATH="/pnpm:$PATH"        \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["node"]
+# ─── Entrypoint ─────────────────────────────────────────────────────────────
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
