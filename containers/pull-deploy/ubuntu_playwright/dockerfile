@@ -5,7 +5,7 @@
 # =============================================================================
 
 # ─── Stage 1: Chromium-only installer ───────────────────────────────────────
-FROM mcr.microsoft.com/playwright:v1.58.0-noble AS browser-installer
+FROM mcr.microsoft.com/playwright:v1.58.1-noble AS browser-installer
 
 # Install only Chromium + deps (using npx to avoid PNPM global issues)
 RUN npx -y playwright@1.58.0 install --with-deps chromium
@@ -13,7 +13,7 @@ RUN npx -y playwright@1.58.0 install --with-deps chromium
 # ─── Stage 2: Final runtime image ───────────────────────────────────────────
 FROM ubuntu:24.04
 
-# Install Node.js 20 (via nodesource) + minimal utils
+# Install Node.js LTS (via NodeSource) + minimal utils
 RUN apt-get update -qq && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -21,7 +21,7 @@ RUN apt-get update -qq && \
         git \
         openssh-client \
         tini \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
     && apt-get clean autoclean
