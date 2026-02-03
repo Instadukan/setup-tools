@@ -1,0 +1,49 @@
+# =============================================================================
+#   Small Ubuntu-based image that clones repo → runs START_CMD
+#   (replaces alpine; glibc for Playwright compatibility)
+# =============================================================================
+
+FROM ubuntu:24.04
+
+# ─── Install minimal runtime deps + git + https support + tini ──────────────
+# No recommends/suggests → keeps image lean
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        git \
+        openssh-client \
+        tini \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
+    && apt-get clean autoclean
+
+# ─── Install Node.js 20 (official nodesource way – small & up-to-date) ───────
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+
+# ─── Install pnpm globally (corepack is in Node 20+) ────────────────────────
+RUN corepack enable && \
+    corepack prepare pnpm@latest --activate && \
+    pnpm config set store-dir /pnpm-store
+
+# Optional: also yarn if you sometimes need it
+# RUN corepack prepare yarn@stable --activate
+
+WORKDIR /app
+
+# ─── Environment variables (override at runtime) ────────────────────────────
+ENV GIT_REPO_URL=""           \
+    GIT_USER=""               \
+    GIT_TOKEN=""              \
+    START_CMD="npm start"     \
+    GIT_CLONE_DEPTH=1         \
+    PNPM_HOME="/pnpm"         \
+    PATH="/pnpm:$PATH"
+
+# ─── Entrypoint script ──────────────────────────────────────────────────────
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Use tini for proper signal handling & zombie reaping
+ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
